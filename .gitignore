@@ -1,0 +1,7 @@
+node_modules/
+dist/
+web/dist/
+*.db
+.env
+.arcrc
+.DS_Store
