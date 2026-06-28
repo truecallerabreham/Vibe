@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 interface DiagramComponent {
   name: string;
@@ -8,6 +8,13 @@ interface DiagramComponent {
   category: string;
 }
 
+interface ComponentDetail {
+  overview: string;
+  tradeoffs: string[];
+  alternatives: string[];
+  whyChosen: string;
+}
+
 interface Props {
   component: DiagramComponent;
   repoFullName: string;
@@ -15,7 +22,35 @@ interface Props {
 }
 
 export function ComponentDetailPanel({ component, repoFullName, onClose }: Props) {
-  const [activeTab, setActiveTab] = React.useState<"overview" | "tradeoffs" | "alternatives" | "why">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tradeoffs" | "alternatives" | "why">("overview");
+  const [detail, setDetail] = useState<ComponentDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDetail(null);
+    setError(null);
+    setLoading(true);
+
+    const params = new URLSearchParams({
+      repoFullName,
+      componentName: component.name,
+    });
+
+    fetch(`/api/component-detail?${params}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d: ComponentDetail) => {
+        setDetail(d);
+        setLoading(false);
+      })
+      .catch((e) => {
+        setError(e.message);
+        setLoading(false);
+      });
+  }, [component.name, repoFullName]);
 
   const tabs = [
     { id: "overview" as const, label: "Overview" },
@@ -27,27 +62,33 @@ export function ComponentDetailPanel({ component, repoFullName, onClose }: Props
   return (
     <div
       style={{
-        width: 360,
-        background: "#1a1a2e",
+        width: 380,
+        background: "#151525",
         borderLeft: "1px solid #333",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
       }}
     >
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid #333", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{
+        padding: "16px 20px",
+        borderBottom: "1px solid #333",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+      }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 16, color: "#fff" }}>{component.name}</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 11, color: "#888" }}>{repoFullName}</p>
+          <h2 style={{ margin: 0, fontSize: 16, color: "#eef" }}>{component.name}</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: "#777" }}>{repoFullName}</p>
           <span
             style={{
               display: "inline-block",
               marginTop: 6,
-              padding: "2px 8px",
+              padding: "2px 10px",
               background: "#2a2a4e",
               borderRadius: 4,
               fontSize: 11,
-              color: "#aaa",
+              color: "#aaf",
             }}
           >
             {component.category}
@@ -60,8 +101,9 @@ export function ComponentDetailPanel({ component, repoFullName, onClose }: Props
             border: "none",
             color: "#888",
             cursor: "pointer",
-            fontSize: 18,
+            fontSize: 20,
             padding: "4px 8px",
+            lineHeight: 1,
           }}
         >
           ×
@@ -75,13 +117,15 @@ export function ComponentDetailPanel({ component, repoFullName, onClose }: Props
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1,
-              padding: "8px 4px",
+              padding: "10px 4px",
               background: activeTab === tab.id ? "#2a2a4e" : "transparent",
               border: "none",
               borderBottom: activeTab === tab.id ? "2px solid #6a6aff" : "2px solid transparent",
-              color: activeTab === tab.id ? "#fff" : "#888",
+              color: activeTab === tab.id ? "#eef" : "#777",
               cursor: "pointer",
               fontSize: 11,
+              fontWeight: activeTab === tab.id ? 500 : 400,
+              transition: "all 0.15s",
             }}
           >
             {tab.label}
@@ -90,70 +134,79 @@ export function ComponentDetailPanel({ component, repoFullName, onClose }: Props
       </div>
 
       <div style={{ flex: 1, padding: 16, overflowY: "auto", fontSize: 13, lineHeight: 1.6 }}>
-        {activeTab === "overview" && (
-          <div>
-            <p style={{ color: "#ccc" }}>{component.description || `${component.name} is a ${component.category}-layer component used in this architecture.`}</p>
-            {component.dependencies.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <strong style={{ color: "#aaa", fontSize: 12 }}>Dependencies:</strong>
-                <ul style={{ margin: "8px 0", paddingLeft: 20, color: "#999" }}>
-                  {component.dependencies.map((dep) => (
-                    <li key={dep}>{dep}</li>
-                  ))}
-                </ul>
+        {loading && (
+          <div style={{ color: "#888", textAlign: "center", paddingTop: 40 }}>
+            Loading analysis...
+          </div>
+        )}
+        {error && (
+          <div style={{ color: "#e55", fontSize: 12 }}>
+            Failed to load: {error}
+            <div style={{ marginTop: 16, color: "#999" }}>
+              <p>{component.description || `${component.name} is a ${component.category}-layer component.`}</p>
+            </div>
+          </div>
+        )}
+        {!loading && !error && detail && (
+          <>
+            {activeTab === "overview" && (
+              <div>
+                <p style={{ color: "#ccc", lineHeight: 1.7 }}>{detail.overview}</p>
+                {component.dependencies.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <strong style={{ color: "#aaa", fontSize: 12 }}>Dependencies:</strong>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {component.dependencies.map((dep) => (
+                        <span
+                          key={dep}
+                          style={{
+                            padding: "3px 10px",
+                            background: "#2a2a4a",
+                            borderRadius: 12,
+                            fontSize: 12,
+                            color: "#aac",
+                          }}
+                        >
+                          {dep}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p style={{ marginTop: 20, color: "#666", fontSize: 12 }}>
+                  Path: <code style={{ color: "#888" }}>{component.path}</code>
+                </p>
               </div>
             )}
-            <p style={{ marginTop: 16, color: "#666", fontSize: 12 }}>
-              Path: <code style={{ color: "#888" }}>{component.path}</code>
-            </p>
-          </div>
-        )}
 
-        {activeTab === "tradeoffs" && (
-          <div>
-            <p style={{ color: "#999", fontStyle: "italic" }}>
-              Trade-off analysis will be generated by AI when you click "Analyze Component" in the full version. This shows the structure of the detail system.
-            </p>
-            <div style={{ marginTop: 16 }}>
-              <strong style={{ color: "#e88" }}>Potential concerns:</strong>
-              <ul style={{ margin: "8px 0", paddingLeft: 20, color: "#ccc" }}>
-                <li>Operational complexity</li>
-                <li>Scaling characteristics</li>
-                <li>Maintenance overhead</li>
-                <li>Learning curve</li>
+            {activeTab === "tradeoffs" && (
+              <ul style={{ margin: 0, paddingLeft: 18, color: "#ccc" }}>
+                {detail.tradeoffs.map((t, i) => (
+                  <li key={i} style={{ marginBottom: 10 }}>{t}</li>
+                ))}
               </ul>
-            </div>
-          </div>
-        )}
+            )}
 
-        {activeTab === "alternatives" && (
-          <div>
-            <p style={{ color: "#999", fontStyle: "italic" }}>
-              AI-generated alternatives will appear here, comparing this component against other popular choices for the same use case.
-            </p>
-            <div style={{ marginTop: 16, color: "#ccc" }}>
-              <p>Common alternatives in this category:</p>
-              <ul style={{ paddingLeft: 20 }}>
-                <li style={{ marginTop: 8 }}>Self-hosted solution</li>
-                <li style={{ marginTop: 8 }}>Managed cloud service</li>
-                <li style={{ marginTop: 8 }}>Open-source alternative</li>
-              </ul>
-            </div>
-          </div>
-        )}
+            {activeTab === "alternatives" && (
+              <div>
+                {detail.alternatives.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: 18, color: "#ccc" }}>
+                    {detail.alternatives.map((a, i) => (
+                      <li key={i} style={{ marginBottom: 10 }}>{a}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: "#888" }}>No alternatives listed.</p>
+                )}
+              </div>
+            )}
 
-        {activeTab === "why" && (
-          <div>
-            <p style={{ color: "#999", fontStyle: "italic" }}>
-              AI-generated analysis showing why this open-source project chose this specific component over alternatives.
-            </p>
-            <div style={{ marginTop: 16, padding: 12, background: "#1e1e3a", borderRadius: 8, color: "#ccc" }}>
-              <p style={{ margin: 0 }}>
-                The original project chose {component.name} because it fits their {component.category} requirements,
-                aligns with their technology stack, and has proven production performance at their scale.
-              </p>
-            </div>
-          </div>
+            {activeTab === "why" && (
+              <div style={{ padding: 14, background: "#1e1e3a", borderRadius: 8, color: "#ccc" }}>
+                {detail.whyChosen}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
