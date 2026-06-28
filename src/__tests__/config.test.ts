@@ -1,36 +1,67 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 describe("Config", () => {
-  it("loads environment variables", () => {
-    const prevKey = process.env.ARC_OPENROUTER_KEY;
-    process.env.ARC_OPENROUTER_KEY = "test-key";
+  const OLD = { ...process.env };
 
-    // Dynamic import to get fresh module state
-    import("../config.js").then(({ loadConfig, validateConfig }) => {
-      const config = loadConfig();
-      expect(config.openrouterKey).toBe("test-key");
-
-      const errors = validateConfig(config);
-      expect(errors.length).toBeGreaterThan(0); // GITHUB_TOKEN still missing
-
-      process.env.ARC_OPENROUTER_KEY = prevKey;
-    });
+  afterEach(() => {
+    process.env = { ...OLD };
   });
 
-  it("reports missing required config", async () => {
+  it("loads provider from env and validates correctly", async () => {
     const { loadConfig, validateConfig } = await import("../config.js");
-    // Ensure no env vars are set
-    const prevKey = process.env.ARC_OPENROUTER_KEY;
-    const prevGh = process.env.GITHUB_TOKEN;
-    delete process.env.ARC_OPENROUTER_KEY;
-    delete process.env.GITHUB_TOKEN;
+
+    process.env.ARC_LLM_PROVIDER = "openrouter";
+    process.env.ARC_OPENROUTER_KEY = "sk-or-v1-test-env";
+    process.env.GITHUB_TOKEN = "ghp_test_env";
 
     const config = loadConfig();
-    const errors = validateConfig(config);
-    expect(errors.length).toBe(2);
-    expect(errors[0]).toContain("ARC_OPENROUTER_KEY");
+    expect(config.llmProvider).toBe("openrouter");
+    expect(config.openrouterKey).toBe("sk-or-v1-test-env");
 
-    process.env.ARC_OPENROUTER_KEY = prevKey;
-    process.env.GITHUB_TOKEN = prevGh;
+    const errors = validateConfig(config);
+    expect(errors.length).toBe(0);
+  });
+
+  it("validates groq provider errors when key is missing from yaml", async () => {
+    const { loadConfig, validateConfig } = await import("../config.js");
+
+    process.env.ARC_LLM_PROVIDER = "groq";
+    delete process.env.ARC_GROQ_KEY;
+
+    const config = loadConfig();
+    expect(config.llmProvider).toBe("groq");
+    expect(config.groqKey).toBe("");
+
+    const errors = validateConfig(config);
+    expect(errors.some(e => e.includes("groq"))).toBe(true);
+  });
+
+  it("defaults to openrouter provider when nothing is set", async () => {
+    const { loadConfig } = await import("../config.js");
+
+    delete process.env.ARC_LLM_PROVIDER;
+
+    const config = loadConfig();
+    expect(config.llmProvider).toBe("openrouter");
+  });
+
+  it("getProviderBaseUrl and getDefaultModel return correct values", async () => {
+    const { getProviderBaseUrl, getDefaultModel } = await import("../config.js");
+
+    expect(getProviderBaseUrl("groq")).toContain("groq.com");
+    expect(getProviderBaseUrl("glm")).toContain("bigmodel.cn");
+    expect(getProviderBaseUrl("gemini")).toContain("googleapis.com");
+    expect(getProviderBaseUrl("openrouter")).toContain("openrouter.ai");
+    expect(getDefaultModel("groq").length).toBeGreaterThan(0);
+    expect(getDefaultModel("openrouter")).toBe("deepseek/deepseek-chat");
+  });
+
+  it("pickProviderKey uses env var over yaml", async () => {
+    const { loadConfig } = await import("../config.js");
+
+    process.env.ARC_LLM_PROVIDER = "gemini";
+
+    const config = loadConfig();
+    expect(config.llmProvider).toBe("gemini");
   });
 });

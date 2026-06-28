@@ -23,6 +23,7 @@ export interface DiagramResult {
   components: DiagramComponent[];
   graphJson: Record<string, unknown>;
   cached: boolean;
+  source?: "gitdiagram" | "llm";
 }
 
 export interface ArchitectureReview {

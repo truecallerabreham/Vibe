@@ -1,14 +1,35 @@
 import OpenAI from "openai";
-import { Config } from "./config.js";
+import { Config, getProviderBaseUrl } from "./config.js";
+
+function getApiKey(config: Config): string {
+  switch (config.llmProvider) {
+    case "openrouter": return config.openrouterKey;
+    case "groq": return config.groqKey;
+    case "glm": return config.glmKey;
+    case "gemini": return config.geminiKey;
+  }
+}
+
+function getModel(config: Config): string {
+  switch (config.llmProvider) {
+    case "openrouter": return config.openrouterModel;
+    case "groq": return config.groqModel;
+    case "glm": return config.glmModel;
+    case "gemini": return config.geminiModel;
+  }
+}
 
 let client: OpenAI | null = null;
+let clientProvider: string | null = null;
 
 function getClient(config: Config): OpenAI {
-  if (!client) {
+  const provider = config.llmProvider;
+  if (!client || clientProvider !== provider) {
     client = new OpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: config.openrouterKey,
+      baseURL: getProviderBaseUrl(provider),
+      apiKey: getApiKey(config),
     });
+    clientProvider = provider;
   }
   return client;
 }
@@ -17,7 +38,7 @@ export async function callLLM(prompt: string, system: string, config: Config): P
   const openai = getClient(config);
 
   const res = await openai.chat.completions.create({
-    model: config.openrouterModel,
+    model: getModel(config),
     messages: [
       { role: "system", content: system },
       { role: "user", content: prompt },

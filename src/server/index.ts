@@ -6,6 +6,7 @@ import { existsSync } from "fs";
 import { CanvasData } from "../types.js";
 import { loadConfig } from "../config.js";
 import { reviewArchitecture } from "../review/reviewer.js";
+import { getComponentDetail } from "../review/component-detail.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = join(__dirname, "..", "..", "web", "dist");
@@ -30,6 +31,33 @@ export async function startServer(options: ServerOptions): Promise<number> {
 
   app.get("/api/data", (_req, res) => {
     res.json(canvasData);
+  });
+
+  app.get("/api/component-detail", async (req, res) => {
+    const { repoFullName, componentName } = req.query;
+    if (!repoFullName || !componentName) {
+      res.status(400).json({ error: "repoFullName and componentName are required" });
+      return;
+    }
+    const diagram = options.diagrams.find((d) => d.repoFullName === repoFullName);
+    if (!diagram) {
+      res.status(404).json({ error: "Repo not found" });
+      return;
+    }
+    const component = diagram.components.find((c) => c.name === componentName);
+    if (!component) {
+      res.status(404).json({ error: "Component not found" });
+      return;
+    }
+    const config = loadConfig();
+    const detail = await getComponentDetail(
+      repoFullName as string,
+      componentName as string,
+      component.category,
+      component.description,
+      config,
+    );
+    res.json(detail);
   });
 
   app.post("/api/review", async (req, res) => {
