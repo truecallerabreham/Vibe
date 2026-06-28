@@ -9,6 +9,7 @@ interface GitHubRepo {
   language: string | null;
   topics: string[];
   default_branch: string;
+  updated_at: string;
 }
 
 export async function searchGithubRepos(queries: string[], config: Config): Promise<RepoInfo[]> {
@@ -17,7 +18,7 @@ export async function searchGithubRepos(queries: string[], config: Config): Prom
   for (const query of queries) {
     try {
       const encoded = encodeURIComponent(query);
-      const url = `https://api.github.com/search/repositories?q=${encoded}&sort=stars&order=desc&per_page=30`;
+      const url = `https://api.github.com/search/repositories?q=${encoded}&sort=stars&order=desc&per_page=50`;
 
       const res = await fetch(url, {
         headers: {
@@ -26,6 +27,11 @@ export async function searchGithubRepos(queries: string[], config: Config): Prom
           "User-Agent": "arc",
         },
       });
+
+      if (res.status === 403) {
+        console.warn("  GitHub API rate limit reached — using results so far.");
+        break;
+      }
 
       if (!res.ok) {
         console.warn(`  GitHub API error (${res.status}) for query: ${query}`);
@@ -47,7 +53,7 @@ export async function searchGithubRepos(queries: string[], config: Config): Prom
         }
       }
     } catch (err) {
-      console.warn(`  Search failed for query: ${query}`, err);
+      console.warn(`  Search failed for query: ${query}`);
     }
   }
 

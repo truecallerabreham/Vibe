@@ -3,27 +3,32 @@ import { RepoInfo } from "../types.js";
 import { callLLM } from "../llm.js";
 
 const SYSTEM_PROMPT = `You rank GitHub repositories by architectural relevance to a user's project.
-Given a list of repos and a project description, return the top 6 most architecturally relevant repos.
+
+Given a list of candidate repos and a project description, select the top 6 most architecturally relevant repos.
 
 Consider:
-- How similar the architecture patterns are
-- Whether the repo solves a related problem
-- Code quality and engineering practices
-- Technology stack alignment
+- Architectural pattern alignment: does this repo solve a structurally similar problem?
+- Codebase maturity: well-established repos with clear architecture patterns rank higher
+- Technology stack relevance: relevance of the languages, frameworks, and tools used
+- Documentation quality: repos with good README and docs are more useful as references
+- Community health: active development, recent releases, responsive maintainers
 
-Return as a JSON array of objects with: { fullName: string, rank: number, reason: string }`;
+Return as a JSON array of objects with: { fullName: string, rank: number, reason: string }
+The reason should briefly explain the architectural relevance.`;
 
 export async function rankRepos(repos: RepoInfo[], description: string, config: Config): Promise<RepoInfo[]> {
   if (repos.length <= 6) return repos;
 
-  const repoList = repos.map((r) => `${r.fullName} - ⭐${r.stars} - ${r.language || "?"} - ${(r.description || "").slice(0, 120)}`).join("\n");
+  const repoList = repos.map((r) =>
+    `${r.fullName} | ⭐${r.stars} | ${r.language || "?"} | topics: ${r.topics.slice(0, 5).join(", ") || "none"} | ${(r.description || "").slice(0, 150)}`
+  ).join("\n");
 
   const prompt = `Project description: "${description}"
 
-Repos:
+Candidates (${repos.length} total):
 ${repoList}
 
-Return the top 6 most architecturally relevant repos as a JSON array.`;
+Select and rank the top 6 most architecturally relevant repos. Return as a JSON array.`;
 
   const result = await callLLM(prompt, SYSTEM_PROMPT, config);
   const cleaned = result.replace(/```(?:json)?\s*/gi, "").trim();
