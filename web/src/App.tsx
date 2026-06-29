@@ -1,16 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Header } from "./Header";
-import { ReferenceCanvas } from "./ReferenceCanvas";
+import { RepoFlow } from "./RepoFlow";
 import { DesignCanvas } from "./DesignCanvas";
 import { ComponentDetailPanel } from "./components/ComponentDetailPanel";
-import { ReviewPanel } from "./review/ReviewPanel";
 import { CanvasData, DiagramComponent } from "./types";
 
 function App() {
   const [data, setData] = useState<CanvasData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"reference" | "design">("reference");
   const [selectedComponent, setSelectedComponent] = useState<{
     repoFullName: string;
     component: DiagramComponent;
@@ -47,12 +45,12 @@ function App() {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
-        background: "#111",
+        background: "#0d0d14",
         color: "#aaa",
         fontFamily: "system-ui",
         gap: 16,
       }}>
-        <div style={{ fontSize: 24 }}>⏳</div>
+        <div style={{ fontSize: 28, opacity: 0.6 }}>◈</div>
         <div style={{ fontSize: 14 }}>Loading architecture data...</div>
       </div>
     );
@@ -66,91 +64,139 @@ function App() {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
-        background: "#111",
+        background: "#0d0d14",
         color: "#e55",
         fontFamily: "system-ui",
         gap: 16,
       }}>
-        <div style={{ fontSize: 24 }}>⚠️</div>
-        <div style={{ fontSize: 14 }}>Error: {error}</div>
+        <div style={{ fontSize: 28 }}>⚠</div>
+        <div style={{ fontSize: 14 }}>{error}</div>
       </div>
     );
   }
 
-  if (!data || data.diagrams.length === 0) {
-    return (
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        background: "#111",
-        color: "#888",
-        fontFamily: "system-ui",
-        gap: 16,
-      }}>
-        <div style={{ fontSize: 24 }}>📭</div>
-        <div style={{ fontSize: 14 }}>No diagrams found. Try running <code style={{ color: "#6af" }}>arc build</code> with a different description.</div>
-      </div>
-    );
-  }
+  const leftDiagram = data?.diagrams[0] || null;
+  const rightDiagram = data?.diagrams[1] || null;
 
   return (
     <div style={{
       display: "flex",
       flexDirection: "column",
       height: "100vh",
-      background: "#111118",
+      background: "#0d0d14",
       color: "#ccc",
       fontFamily: "system-ui, -apple-system, sans-serif",
     }}>
-      <Header
-        description={data.description}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <Header description={data?.description || ""} />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <div style={{ flex: 1, position: "relative" }}>
-          {activeTab === "reference" && (
-            <ReferenceCanvas data={data} onComponentClick={onComponentClick} />
-          )}
-          {activeTab === "design" && (
-            <DesignCanvas />
-          )}
+        {/* Left panel: first reference */}
+        <div style={{
+          width: "28%",
+          minWidth: 280,
+          borderRight: "1px solid #222",
+          display: "flex",
+          flexDirection: "column",
+          background: "#111118",
+        }}>
+          <div style={{
+            padding: "10px 14px",
+            borderBottom: "1px solid #222",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#888",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            <span style={{ color: "#6a6aff" }}>◰</span>
+            {leftDiagram ? leftDiagram.repoFullName : "No reference"}
+            {leftDiagram?.cached && <span style={{ color: "#666", fontSize: 10 }}>(cached)</span>}
+          </div>
+          <div style={{ flex: 1 }}>
+            {leftDiagram && (
+              <RepoFlow diagram={leftDiagram} onComponentClick={onComponentClick} />
+            )}
+          </div>
         </div>
 
-        {selectedComponent && (
+        {/* Center panel: design canvas */}
+        <div style={{
+          flex: 1,
+          minWidth: 300,
+          borderRight: "1px solid #222",
+          position: "relative",
+        }}>
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: "10px 14px",
+            borderBottom: "1px solid #222",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#888",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "#111118",
+            zIndex: 10,
+          }}>
+            <span style={{ color: "#4e8" }}>◇</span>
+            Your Architecture
+          </div>
+          <div style={{ width: "100%", height: "100%" }}>
+            <DesignCanvas />
+          </div>
+        </div>
+
+        {/* Right panel: second reference */}
+        <div style={{
+          width: "28%",
+          minWidth: 280,
+          display: "flex",
+          flexDirection: "column",
+          background: "#111118",
+        }}>
+          <div style={{
+            padding: "10px 14px",
+            borderBottom: "1px solid #222",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#888",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            <span style={{ color: "#6a6aff" }}>◰</span>
+            {rightDiagram ? rightDiagram.repoFullName : "No reference"}
+            {rightDiagram?.cached && <span style={{ color: "#666", fontSize: 10 }}>(cached)</span>}
+          </div>
+          <div style={{ flex: 1 }}>
+            {rightDiagram && (
+              <RepoFlow diagram={rightDiagram} onComponentClick={onComponentClick} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Side panel for component details */}
+      {selectedComponent && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 100,
+        }}>
           <ComponentDetailPanel
             component={selectedComponent.component}
             repoFullName={selectedComponent.repoFullName}
             onClose={() => setSelectedComponent(null)}
           />
-        )}
-
-        {activeTab === "design" && !selectedComponent && (
-          <ReviewPanel description={data.description} />
-        )}
-      </div>
-
-      <footer style={{
-        padding: "6px 20px",
-        borderTop: "1px solid #222",
-        display: "flex",
-        gap: 24,
-        fontSize: 11,
-        color: "#555",
-        background: "#0e0e14",
-      }}>
-        {data.diagrams.map((d) => (
-          <span key={d.repoFullName}>
-            {d.repoFullName}
-            {d.source ? ` (${d.source})` : ""}
-            {d.cached ? " [cached]" : ""}
-          </span>
-        ))}
-      </footer>
+        </div>
+      )}
     </div>
   );
 }
