@@ -59,9 +59,10 @@ export async function fetchDiagrams(repos: RepoInfo[], config: Config): Promise<
   const gitdiagramAvailable = await isGitDiagramAvailable(config.gitdiagramUrl);
 
   if (gitdiagramAvailable) {
-    console.log("  GitDiagram backend available: using generated diagrams\n");
+    console.log("  GitDiagram backend available: generating real architecture diagrams\n");
   } else {
-    console.log("  GitDiagram backend not available: using LLM-generated diagrams (consider starting gitdiagram/backend for better quality)\n");
+    console.log("  ⚠ GitDiagram backend not available. Install Python 3.14+ and uv, then run: cd gitdiagram/backend && uv sync\n");
+    console.log("  Falling back to LLM-generated diagrams (less accurate)...\n");
   }
 
   for (const repo of repos) {
