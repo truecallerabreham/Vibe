@@ -10,6 +10,7 @@ import {
   ReactFlowProvider,
   Node,
   Edge,
+  Connection,
   addEdge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -54,7 +55,7 @@ export function DesignCanvas() {
   } | null>(null);
 
   const onConnect = useCallback(
-    (params: { source: string; target: string }) => {
+    (params: Connection) => {
       setEdges((eds) => addEdge({ ...params, type: "smoothstep", style: { stroke: "#6a6aff", strokeWidth: 2 } }, eds));
     },
     [setEdges],

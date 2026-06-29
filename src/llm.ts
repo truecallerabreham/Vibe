@@ -50,8 +50,27 @@ export async function callLLM(prompt: string, system: string, config: Config): P
   return res.choices[0]?.message?.content?.trim() || "";
 }
 
+function sanitizeValue(val: unknown): unknown {
+  if (typeof val === "string") {
+    return val.replace(/^```(?:mermaid)?\s*\n?|```\s*$/gi, "").trim();
+  }
+  return val;
+}
+
+function sanitizeResult<T>(obj: T): T {
+  if (obj && typeof obj === "object") {
+    const result = { ...obj } as Record<string, unknown>;
+    for (const key of Object.keys(result)) {
+      result[key] = sanitizeValue(result[key]);
+    }
+    return result as T;
+  }
+  return obj;
+}
+
 export async function callLLMWithJSON<T>(prompt: string, system: string, config: Config): Promise<T> {
   const text = await callLLM(prompt, system, config);
   const cleaned = text.replace(/```(?:json)?\s*/gi, "").trim();
-  return JSON.parse(cleaned) as T;
+  const parsed = JSON.parse(cleaned) as T;
+  return sanitizeResult(parsed);
 }
