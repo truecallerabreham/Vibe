@@ -26,3 +26,11 @@ gitdiagram/Dockerfile
 gitdiagram/docker-compose.yml
 gitdiagram/public/
 gitdiagram/scripts/
+gitdiagram/.gitignore
+gitdiagram/components.json
+gitdiagram/docs/
+gitdiagram/package.json
+gitdiagram/src/
+gitdiagram/vercel.json
+gitdiagram/bun.lock
+gitdiagram/next-env.d.ts
